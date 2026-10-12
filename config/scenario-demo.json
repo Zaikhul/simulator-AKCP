@@ -1,0 +1,13 @@
+{
+  "description": "Semua sensor diskrit aktif dan pulih satu kali. Waktu adalah detik simulasi; setelah timeline berakhir sensor tetap normal.",
+  "events": [
+    { "atSeconds": 2, "sensorId": "door", "state": "active" },
+    { "atSeconds": 3, "sensorId": "motion", "state": "active" },
+    { "atSeconds": 5, "sensorId": "motion", "state": "normal" },
+    { "atSeconds": 6, "sensorId": "door", "state": "normal" },
+    { "atSeconds": 8, "sensorId": "power", "state": "active" },
+    { "atSeconds": 13, "sensorId": "power", "state": "normal" },
+    { "atSeconds": 15, "sensorId": "panic", "state": "active" },
+    { "atSeconds": 17, "sensorId": "panic", "state": "normal" }
+  ]
+}

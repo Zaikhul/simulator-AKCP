@@ -1,0 +1,14 @@
+{
+  "name": "@outlet/akcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./protocol": "./src/protocol.js",
+    "./config": "./src/config.js",
+    "./devices": "./src/devices.js",
+    "./mqtt": "./src/mqtt.js",
+    "./logger": "./src/logger.js"
+  },
+  "dependencies": { "mqtt": "5.16.0" }
+}

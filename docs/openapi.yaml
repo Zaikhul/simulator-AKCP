@@ -1,0 +1,198 @@
+openapi: 3.0.3
+info:
+  title: Outlet Monitoring Demo API
+  version: 1.0.0
+  description: AKCP MQTT telemetry, latest readings, alarms, and recovery events.
+servers:
+  - url: http://127.0.0.1:3000
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Process liveness and MQTT ingest counters
+      security: []
+      responses:
+        '200':
+          description: Process is running; MQTT connection may be offline.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  mqttConnected: { type: boolean }
+                  mqttSubscribed: { type: boolean }
+                  uptimeSeconds: { type: integer }
+                  counters:
+                    type: object
+                    properties:
+                      accepted: { type: integer }
+                      duplicate: { type: integer }
+                      stale: { type: integer }
+                      rejected: { type: integer }
+  /ready:
+    get:
+      summary: Broker connection and successful subscription
+      security: []
+      responses:
+        '200': { description: MQTT is connected and subscribed. }
+        '503': { description: MQTT is disconnected or has not subscribed. }
+  /api/v1/devices:
+    get:
+      summary: Configured devices
+      responses:
+        '200':
+          description: Device list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        mac: { type: string, example: 000BDCDE4001 }
+                        name: { type: string }
+                        sensors: { type: integer }
+                        metrics: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/sensors:
+    get:
+      summary: Configured metrics and latest readings
+      parameters:
+        - $ref: '#/components/parameters/Mac'
+      responses:
+        '200': { $ref: '#/components/responses/Sensors' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/alarms:
+    get:
+      summary: Latest metrics whose status is active or nonnormal
+      parameters:
+        - $ref: '#/components/parameters/Mac'
+      responses:
+        '200': { $ref: '#/components/responses/Sensors' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/telemetry:
+    get:
+      summary: Telemetry history in descending ID order
+      parameters:
+        - $ref: '#/components/parameters/Mac'
+        - $ref: '#/components/parameters/SensorId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Before'
+      responses:
+        '200': { $ref: '#/components/responses/History' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/events:
+    get:
+      summary: Alarm, recovery, and initial active-state history
+      parameters:
+        - $ref: '#/components/parameters/Mac'
+        - $ref: '#/components/parameters/SensorId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Before'
+      responses:
+        '200': { $ref: '#/components/responses/History' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Required only when API_TOKEN is configured; health and ready are always public.
+  parameters:
+    Mac:
+      name: mac
+      in: query
+      schema: { type: string, example: 000BDCDE4001 }
+      description: Optional device MAC, with or without colon/hyphen separators.
+    SensorId:
+      name: sensorId
+      in: query
+      schema: { type: string, example: power }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+    Before:
+      name: before
+      in: query
+      schema: { type: integer, minimum: 1 }
+      description: Return IDs strictly less than this cursor.
+  schemas:
+    Reading:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer }
+        mac: { type: string }
+        compoundId: { type: string }
+        sensorId: { type: string }
+        sensorName: { type: string }
+        type: { type: string, enum: [TEMPERATURE, TEMPERATURE_HUMIDITY, DOOR, MOTION, POWER, PANIC_BUTTON] }
+        metric: { type: string, enum: [temperature, humidity, switch] }
+        unit: { type: string, nullable: true }
+        value: { type: number }
+        rawValue: { type: number }
+        status: { type: integer }
+        state: { type: string }
+        active: { type: boolean }
+        timestamp: { type: integer, description: Unix seconds UTC }
+        time: { type: string, format: date-time }
+        receivedAt: { type: string, format: date-time }
+        topic: { type: string }
+        event: { type: string, enum: [status, status_change, value_change] }
+        retained: { type: boolean }
+        eventKind: { type: string, enum: [INITIAL_ALARM, ALARM, RECOVERY, STATUS_CHANGE], description: Present only on event history records. }
+        previousStatus: { type: integer, nullable: true, description: Present only on event history records. }
+    Sensor:
+      type: object
+      properties:
+        mac: { type: string }
+        deviceName: { type: string }
+        sensorId: { type: string }
+        sensorName: { type: string }
+        type: { type: string }
+        metric: { type: string }
+        compoundId: { type: string }
+        unit: { type: string, nullable: true }
+        reading: { $ref: '#/components/schemas/Reading' }
+  responses:
+    Sensors:
+      description: Metrics and latest readings; reading is null until first telemetry arrives.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items: { $ref: '#/components/schemas/Sensor' }
+    History:
+      description: History page in descending ID order. Use nextBefore for the next page; null means no cursor available.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items: { $ref: '#/components/schemas/Reading' }
+              nextBefore: { type: integer, nullable: true }
+    BadRequest:
+      description: Invalid MAC, sensorId, limit, or cursor.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+    Unauthorized:
+      description: Missing or incorrect bearer token when API_TOKEN is configured.

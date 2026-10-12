@@ -1,0 +1,17 @@
+{
+  "name": "outlet-monitoring-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "api": "node apps/api/src/index.js",
+    "sim": "node apps/akcpsim/src/index.js",
+    "demo": "node scripts/demo.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "check": "node scripts/check.js",
+    "smoke:mosquitto": "node scripts/smoke-mosquitto.js"
+  },
+  "devDependencies": { "aedes": "0.51.3" }
+}

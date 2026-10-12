@@ -1,0 +1,53 @@
+name: outlet-dummy-simulator
+
+services:
+  api:
+    build: .
+    init: true
+    command: ["node", "apps/api/src/index.js"]
+    environment:
+      MQTT_URL: ${MQTT_URL:-mqtt://wit:123456789@host.docker.internal:1883}
+      API_HOST: 0.0.0.0
+      API_PORT: "3000"
+      API_DB_FILE: /app/data/monitoring.db
+      API_TOKEN: ${API_TOKEN:-}
+      AKCP_VALUE_FORMAT: ${AKCP_VALUE_FORMAT:-engineering}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - api-data:/app/data
+      - ./config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  akcpsim:
+    build: .
+    init: true
+    command: ["node", "apps/akcpsim/src/index.js"]
+    environment:
+      MQTT_URL: ${MQTT_URL:-mqtt://wit:123456789@host.docker.internal:1883}
+      AKCP_VALUE_FORMAT: ${AKCP_VALUE_FORMAT:-engineering}
+      SIM_INTERVAL_SECONDS: ${SIM_INTERVAL_SECONDS:-5}
+      SIM_PROFILE: ${SIM_PROFILE:-realistic}
+      SIM_SPEED: ${SIM_SPEED:-1}
+      SIM_SEED: ${SIM_SEED:-42}
+      SIM_SCENARIO_FILE: ${SIM_SCENARIO_FILE:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  api-data:
